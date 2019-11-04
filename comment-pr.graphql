@@ -1,0 +1,12 @@
+mutation {
+  addPullRequestReview(input: {
+    body: "hello"
+    pullRequestId: "PR_ID"
+    event: COMMENT
+    comments: PR_COMMENTS
+  }) {
+    clientMutationId
+  }
+}
+
+

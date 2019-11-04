@@ -1,0 +1,33 @@
+{
+  repository(owner: "OWNER", name: "REPO") {
+    pullRequest(number: PR_ID) {
+      id
+      baseRef {
+        target {
+          oid
+        }
+      }
+      headRef {
+        target {
+          oid
+        }
+      }
+      reviews(author: "ecksun", first: 100) {
+        nodes {
+          comments(first: 100) {
+            pageInfo {
+              endCursor
+            }
+            nodes {
+              path
+              position
+              author {
+                login
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
