@@ -1,18 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/docopt/docopt-go"
+	"github.com/ecksun/diffline/pkg/lint"
 	"github.com/waigani/diffparser"
 )
 
@@ -26,25 +23,6 @@ Usage:
 Options:
   -h --help     Show this screen.
   --version     Show version.`
-
-// Example line to match:
-// ./parse.go:9:9: main redeclared in this block
-var lintParagraph = regexp.MustCompile(`^([^: ]+):([0-9]+)(?::([0-9]+):)? (.*)$`)
-
-type paragraph struct {
-	file string
-	line uint32
-	char uint32
-	msg  []string
-}
-
-func (m *paragraph) Message() string {
-	return strings.Join(m.msg, "\n")
-}
-
-func (m *paragraph) String() string {
-	return fmt.Sprintf("%s:%d:%d: %s", m.file, m.line, m.char, m.Message())
-}
 
 type graphQLComment struct {
 	path     string
@@ -77,16 +55,16 @@ func main() {
 	}
 
 	reader, err := os.Open(conf.Lintfile)
-	paragraphs, err := parseLint(reader)
+	paragraphs, err := lint.Parse(reader)
 	if err != nil {
 		panic(err)
 	}
 
-	fileLints := map[string][]*paragraph{}
+	fileLints := map[string][]*lint.Paragraph{}
 	for _, issue := range paragraphs {
-		file := path.Clean(issue.file)
+		file := path.Clean(issue.File)
 		if _, exists := fileLints[file]; !exists {
-			fileLints[file] = []*paragraph{}
+			fileLints[file] = []*lint.Paragraph{}
 		}
 		fileLints[file] = append(fileLints[file], issue)
 	}
@@ -98,9 +76,9 @@ func main() {
 			diffLines := getNewLinesInDiff(file)
 			// This is O(log(n)*m) where n = #diffLines, m = #lints
 			for _, lint := range lints {
-				position, ok := getDiffPosition(diffLines, int(lint.line)) // TODO Fix int types
+				position, ok := getDiffPosition(diffLines, int(lint.Line)) // TODO Fix int types
 				if !ok {
-					fmt.Fprintf(os.Stderr, "%s:%d not found in diff\n", lint.file, lint.line)
+					fmt.Fprintf(os.Stderr, "%s:%d not found in diff\n", lint.File, lint.Line)
 				}
 				comments = append(comments, graphQLComment{
 					path:     file.NewName,
@@ -119,49 +97,6 @@ func main() {
 		}
 	}
 	fmt.Println("]")
-}
-
-func parseLint(reader io.Reader) ([]*paragraph, error) {
-	paragraphs := []*paragraph{}
-
-	scanner := bufio.NewScanner(reader)
-
-	var currentMatch *paragraph
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		groups := lintParagraph.FindAllStringSubmatch(line, -1)
-		if groups == nil && currentMatch != nil {
-			currentMatch.msg = append(currentMatch.msg, line)
-		} else if groups != nil {
-			line, err := strconv.ParseInt(groups[0][2], 10, 32)
-			if err != nil {
-				return []*paragraph{}, err
-			}
-			char, err := strconv.ParseInt(groups[0][2], 10, 32)
-			if err != nil {
-				return []*paragraph{}, err
-			}
-
-			currentMatch = &paragraph{
-				file: groups[0][1],
-				line: uint32(line),
-				char: uint32(char),
-				msg:  []string{groups[0][4]},
-			}
-			paragraphs = append(paragraphs, currentMatch)
-		}
-
-	}
-
-	if err := scanner.Err(); err != nil {
-		return []*paragraph{}, err
-	}
-
-	return paragraphs, nil
 }
 
 func getNewLinesInDiff(file *diffparser.DiffFile) []*diffparser.DiffLine {
