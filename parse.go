@@ -29,7 +29,7 @@ Options:
 
 // Example line to match:
 // ./parse.go:9:9: main redeclared in this block
-var lintParagraph = regexp.MustCompile(`^([^: ]+):([0-9]+):([0-9]+): (.*)$`)
+var lintParagraph = regexp.MustCompile(`^([^: ]+):([0-9]+)(?::([0-9]+):)? (.*)$`)
 
 type paragraph struct {
 	file string
