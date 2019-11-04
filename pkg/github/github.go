@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 type PRResponse struct {
@@ -153,7 +152,7 @@ const (
 `
 )
 
-func GetPR(owner string, repo string, pr uint32) (PullRequest, error) {
+func GetPR(owner string, repo string, pr string) (PullRequest, error) {
 	// TODO Extract environment reading to main
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
@@ -168,7 +167,7 @@ func GetPR(owner string, repo string, pr uint32) (PullRequest, error) {
 	}{
 		Owner: owner,
 		Repo:  repo,
-		PR:    strconv.FormatUint(uint64(pr), 10),
+		PR:    pr,
 	})
 
 	// reader, err := os.Open("./get-pr-diff.graphql")
