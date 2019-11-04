@@ -57,7 +57,7 @@ func (c graphQLComment) String() string {
     path: "%s"
     position: %d
     body: "%s"
-}`, c.path, c.position, c.body)
+}`, c.path, c.position, strings.ReplaceAll(c.body, "\"", "\\\""))
 }
 
 func main() {
