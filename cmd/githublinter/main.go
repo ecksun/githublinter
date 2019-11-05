@@ -28,6 +28,16 @@ Options:
 // Matches for example https://github.com/ecksun/test-repo/pull/3
 var githubURLRegex = regexp.MustCompile(`.*//github.com/([^/]+)/([^/]+)/pull/([0-9]+)`)
 
+const prMessage = `
+# Linting issues found!
+
+githublinter found linting issues introduced in this pull-request.
+`
+
+const updatePRMessage = prMessage + `
+New linting issues were found after the original review, they are in detailed in a review below.
+`
+
 func main() {
 	var conf struct {
 		PR     string `docopt:"<pr>"`
@@ -92,7 +102,7 @@ func main() {
 
 	if len(newComments) != 0 {
 		if len(pullrequest.Reviews) == 0 {
-			err := github.CreateReview(pullrequest.ID, "Linting issues!", newComments)
+			err := github.CreateReview(pullrequest.ID, prMessage, newComments)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to create pull-request review: %+v\n", err)
 				os.Exit(1)
@@ -100,7 +110,7 @@ func main() {
 			fmt.Println("Successfully submitted review")
 
 		} else {
-			err := github.UpdateReview(pullrequest.Reviews[0].ID, "New body2")
+			err := github.UpdateReview(pullrequest.Reviews[0].ID, updatePRMessage)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to update pull-request body: %+v\n", err)
 				os.Exit(1)
