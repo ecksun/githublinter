@@ -213,15 +213,8 @@ func CreateReview(pr string, body string, comments []common.GraphQLComment) erro
 		return err
 	}
 
-	// TODO Extract environment reading to main
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		fmt.Fprintf(os.Stderr, "missing/empty TOKEN environment variable")
-		os.Exit(1)
-	}
-
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "bearer "+token)
+	req.Header.Add("Authorization", "bearer "+getGithubToken())
 
 	client := &http.Client{}
 	if _, err := client.Do(req); err != nil {
@@ -231,13 +224,6 @@ func CreateReview(pr string, body string, comments []common.GraphQLComment) erro
 }
 
 func GetPR(owner string, repo string, pr string) (PullRequest, error) {
-	// TODO Extract environment reading to main
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		fmt.Fprintf(os.Stderr, "missing/empty TOKEN environment variable")
-		os.Exit(1)
-	}
-
 	query := GraphQLMustParse("get-pr", getPrGraphql, struct {
 		Owner string
 		Repo  string
@@ -255,7 +241,7 @@ func GetPR(owner string, repo string, pr string) (PullRequest, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "bearer "+token)
+	req.Header.Add("Authorization", "bearer "+getGithubToken())
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -278,14 +264,16 @@ mutation {
 }
 `
 
-func UpdateReview(reviewID string, body string) error {
-	// TODO Extract environment reading to main
+func getGithubToken() string {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		fmt.Fprintf(os.Stderr, "missing/empty TOKEN environment variable")
+		fmt.Fprintf(os.Stderr, "missing/empty GITHUB_TOKEN environment variable\n")
 		os.Exit(1)
 	}
+	return token
+}
 
+func UpdateReview(reviewID string, body string) error {
 	query := GraphQLMustParse("update-review", updateReviewGraphql, struct {
 		ID   string
 		Body string
@@ -300,7 +288,7 @@ func UpdateReview(reviewID string, body string) error {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Add("Authorization", "bearer "+token)
+	req.Header.Add("Authorization", "bearer "+getGithubToken())
 
 	client := &http.Client{}
 
