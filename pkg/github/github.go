@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/ecksun/diffline/pkg/common"
 )
 
 type PRResponse struct {
@@ -44,7 +46,7 @@ type PRResponse struct {
 type PRComment struct {
 	Path     string
 	Position int
-	Body     string
+	BodyText string
 	Author   struct {
 		Login string
 	}
@@ -89,7 +91,7 @@ func simplifyPRStruct(pr PRResponse) PullRequest {
 				Path:     comment.Path,
 				Position: comment.Position,
 				Author:   comment.Author.Login,
-				Body:     comment.Body,
+				Body:     comment.BodyText,
 			})
 		}
 	}
@@ -145,7 +147,7 @@ const (
               author {
                 login
               }
-              body
+              bodyText
             }
           }
         }
@@ -154,7 +156,62 @@ const (
   }
 }
 `
+
+	addPullRequestReviewGraphql string = `
+mutation {
+  addPullRequestReview(input: {
+    body: "{{ .Body }}"
+    pullRequestId: "{{ .PR }}"
+    event: COMMENT
+    comments: [
+	{{range .Comments }}
+	{
+		path: "{{ .Path }}"
+		position: {{ .Position }}
+		body: "{{ .Body }}"
+	}
+	{{ end }}
+	]
+  }) {
+    clientMutationId
+  }
+}
+`
 )
+
+func CreateReview(pr string, body string, comments []common.GraphQLComment) error {
+	query := GraphQLMustParse("add-review", addPullRequestReviewGraphql, struct {
+		PR       string
+		Body     string
+		Comments []common.GraphQLComment
+	}{
+		PR:       pr,
+		Body:     body,
+		Comments: comments,
+	})
+
+	// reader, err := os.Open("./get-pr-diff.graphql")
+	req, err := http.NewRequest("POST", "https://api.github.com/graphql", bytes.NewBuffer(query))
+	if err != nil {
+		return err
+	}
+
+	// TODO Extract environment reading to main
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		fmt.Fprintf(os.Stderr, "missing/empty TOKEN environment variable")
+		os.Exit(1)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "bearer "+token)
+
+	client := &http.Client{}
+	if _, err := client.Do(req); err != nil {
+		return err
+	}
+	return nil
+}
 
 func GetPR(owner string, repo string, pr string) (PullRequest, error) {
 	// TODO Extract environment reading to main
