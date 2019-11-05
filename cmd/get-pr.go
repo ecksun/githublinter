@@ -63,13 +63,15 @@ func main() {
 
 	existingComments := map[common.GraphQLComment]struct{}{}
 
-	for _, comment := range pullrequest.Comments {
-		graphQLComment := common.GraphQLComment{
-			Path:     comment.Path,
-			Position: comment.Position,
-			Body:     comment.Body,
+	for _, review := range pullrequest.Reviews {
+		for _, comment := range review.Comments {
+			graphQLComment := common.GraphQLComment{
+				Path:     comment.Path,
+				Position: comment.Position,
+				Body:     comment.Body,
+			}
+			existingComments[graphQLComment] = struct{}{}
 		}
-		existingComments[graphQLComment] = struct{}{}
 	}
 
 	comments, err := getLinterComments(pullrequest, repoDir, conf.Linter[0], conf.Linter[1:])
@@ -85,13 +87,32 @@ func main() {
 	}
 
 	if len(newComments) != 0 {
-		github.CreateReview(pullrequest.ID, "Linting issues!", newComments)
+		if len(pullrequest.Reviews) == 0 {
+			err := github.CreateReview(pullrequest.ID, "Linting issues!", newComments)
+			if err != nil {
+				panic(err)
+			}
+
+		} else {
+			err := github.UpdateReview(pullrequest.Reviews[0].ID, "New body2")
+			if err != nil {
+				panic(err)
+			}
+			err = github.CreateReview(pullrequest.ID, "", newComments)
+			if err != nil {
+				panic(err)
+			}
+
+		}
 	} else {
 		fmt.Println("No issues found!")
 	}
 }
 
 func getLinterComments(pullrequest github.PullRequest, repoDir string, linter string, linterArgs []string) ([]common.GraphQLComment, error) {
+	if pullrequest.BaseRef == "" || pullrequest.HeadRef == "" {
+		return nil, fmt.Errorf("Cannot get diff between %q and %q", pullrequest.BaseRef, pullrequest.HeadRef)
+	}
 	cmd := exec.Command("git", "diff", pullrequest.BaseRef, pullrequest.HeadRef)
 	cmd.Dir = os.Getenv("GIT_REPO")
 
@@ -103,13 +124,6 @@ func getLinterComments(pullrequest github.PullRequest, repoDir string, linter st
 	if err = cmd.Start(); err != nil {
 		panic(err)
 	}
-
-	go func() {
-		err := cmd.Wait()
-		if err != nil {
-			panic(err)
-		}
-	}()
 
 	lintPath, err := getLintPath(linter)
 	if err != nil {
@@ -129,14 +143,22 @@ func getLinterComments(pullrequest github.PullRequest, repoDir string, linter st
 		panic(err)
 	}
 
-	go func() {
-		err := lintCmd.Wait()
+	comments, err := difflint.GetLintIssuesInDiff(stdout, lintOut)
+
+	{
+		err := cmd.Wait()
 		if err != nil {
 			fmt.Println(err)
+			panic(err)
 		}
-	}()
+	}
+	{
+		// We ignore errors as linting will fail if there are lint-errors,
+		// which is just fine in our case
+		_ = lintCmd.Wait()
+	}
 
-	return difflint.GetLintIssuesInDiff(stdout, lintOut)
+	return comments, err
 }
 
 func getLintPath(execPath string) (string, error) {
