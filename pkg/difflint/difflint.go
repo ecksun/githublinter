@@ -36,12 +36,12 @@ func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]graphQLCommen
 	diff, err := diffparser.Parse(string(bytes))
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse diff: %v", err)
 	}
 
 	paragraphs, err := lint.Parse(rawLints)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse lint output: %v", err)
 	}
 
 	fileLints := map[string][]*lint.Paragraph{}
