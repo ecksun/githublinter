@@ -40,7 +40,6 @@ func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]graphQLCommen
 	}
 
 	paragraphs, err := lint.Parse(rawLints)
-	fmt.Println(paragraphs)
 	if err != nil {
 		return nil, err
 	}
