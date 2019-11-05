@@ -86,7 +86,7 @@ func main() {
 
 	lintCmd := exec.Command(lintPath, conf.Linter[1:]...)
 
-	lintOut, err := lintCmd.StderrPipe()
+	lintOut, err := lintCmd.StdoutPipe()
 	if err != nil {
 		panic(err)
 	}
