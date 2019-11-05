@@ -44,6 +44,7 @@ type PRResponse struct {
 type PRComment struct {
 	Path     string
 	Position int
+	Body     string
 	Author   struct {
 		Login string
 	}
@@ -60,6 +61,7 @@ type PullRequestComment struct {
 	Path     string
 	Position int
 	Author   string
+	Body     string
 }
 
 func GraphQLMustParse(name string, tmplStr string, data interface{}) []byte {
@@ -87,6 +89,7 @@ func simplifyPRStruct(pr PRResponse) PullRequest {
 				Path:     comment.Path,
 				Position: comment.Position,
 				Author:   comment.Author.Login,
+				Body:     comment.Body,
 			})
 		}
 	}
@@ -142,6 +145,7 @@ const (
               author {
                 login
               }
+              body
             }
           }
         }

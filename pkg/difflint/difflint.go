@@ -7,27 +7,13 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strings"
 
+	"github.com/ecksun/diffline/pkg/common"
 	"github.com/ecksun/diffline/pkg/lint"
 	"github.com/waigani/diffparser"
 )
 
-type graphQLComment struct {
-	path     string
-	position int
-	body     string
-}
-
-func (c graphQLComment) String() string {
-	return fmt.Sprintf(`{
-    path: "%s"
-    position: %d
-    body: "%s"
-}`, c.path, c.position, strings.ReplaceAll(c.body, "\"", "\\\""))
-}
-
-func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]graphQLComment, error) {
+func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]common.GraphQLComment, error) {
 	bytes, err := ioutil.ReadAll(rawDiff)
 	if err != nil {
 		return nil, err
@@ -53,7 +39,7 @@ func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]graphQLCommen
 		fileLints[file] = append(fileLints[file], issue)
 	}
 
-	comments := []graphQLComment{}
+	comments := []common.GraphQLComment{}
 
 	for _, file := range diff.Files {
 		if lints, exists := fileLints[path.Clean(file.NewName)]; exists {
@@ -64,10 +50,10 @@ func GetLintIssuesInDiff(rawDiff io.Reader, rawLints io.Reader) ([]graphQLCommen
 				if !ok {
 					fmt.Fprintf(os.Stderr, "%s:%d not found in diff\n", lint.File, lint.Line)
 				}
-				comments = append(comments, graphQLComment{
-					path:     file.NewName,
-					position: position,
-					body:     lint.Message(),
+				comments = append(comments, common.GraphQLComment{
+					Path:     file.NewName,
+					Position: position,
+					Body:     lint.Message(),
 				})
 			}
 		}

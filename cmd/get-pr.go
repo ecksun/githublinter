@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docopt/docopt-go"
+	"github.com/ecksun/diffline/pkg/common"
 	"github.com/ecksun/diffline/pkg/difflint"
 	"github.com/ecksun/diffline/pkg/github"
 )
@@ -60,6 +61,32 @@ func main() {
 		panic(err)
 	}
 
+	existingComments := map[common.GraphQLComment]struct{}{}
+
+	for _, comment := range pullrequest.Comments {
+		graphQLComment := common.GraphQLComment{
+			Path:     comment.Path,
+			Position: comment.Position,
+			Body:     comment.Body,
+		}
+		existingComments[graphQLComment] = struct{}{}
+	}
+
+	comments, err := getLinterComments(pullrequest, repoDir, conf.Linter[0], conf.Linter[1:])
+	if err != nil {
+		panic(err)
+	}
+
+	var newComments []common.GraphQLComment
+	for _, comment := range comments {
+		if _, exists := existingComments[comment]; !exists {
+			newComments = append(newComments, comment)
+		}
+	}
+	fmt.Println(newComments)
+}
+
+func getLinterComments(pullrequest github.PullRequest, repoDir string, linter string, linterArgs []string) ([]common.GraphQLComment, error) {
 	cmd := exec.Command("git", "diff", pullrequest.BaseRef, pullrequest.HeadRef)
 	cmd.Dir = os.Getenv("GIT_REPO")
 
@@ -79,12 +106,12 @@ func main() {
 		}
 	}()
 
-	lintPath, err := getLintPath(conf.Linter[0])
+	lintPath, err := getLintPath(linter)
 	if err != nil {
 		panic(err)
 	}
 
-	lintCmd := exec.Command(lintPath, conf.Linter[1:]...)
+	lintCmd := exec.Command(lintPath, linterArgs...)
 
 	lintOut, err := lintCmd.StdoutPipe()
 	if err != nil {
@@ -104,12 +131,7 @@ func main() {
 		}
 	}()
 
-	comments, err := difflint.GetLintIssuesInDiff(stdout, lintOut)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(comments)
+	return difflint.GetLintIssuesInDiff(stdout, lintOut)
 }
 
 func getLintPath(execPath string) (string, error) {
