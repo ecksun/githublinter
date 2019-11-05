@@ -30,6 +30,8 @@ type PRResponse struct {
 				}
 				Reviews struct {
 					Nodes []struct {
+						ID       string
+						BodyText string
 						Comments struct {
 							PageInfo struct {
 								EndCursor string
@@ -53,9 +55,15 @@ type PRComment struct {
 }
 
 type PullRequest struct {
+	ID      string
+	BaseRef string
+	HeadRef string
+	Reviews []PullRequestReview
+}
+
+type PullRequestReview struct {
 	ID       string
-	BaseRef  string
-	HeadRef  string
+	Body     string
 	Comments []PullRequestComment
 }
 
@@ -78,14 +86,15 @@ func GraphQLMustParse(name string, tmplStr string, data interface{}) []byte {
 		Query: buf.String(),
 	})
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create JSON: %v", err))
 	}
 	return query
 }
 
 func simplifyPRStruct(pr PRResponse) PullRequest {
-	var comments []PullRequestComment
+	var reviews []PullRequestReview
 	for _, review := range pr.Data.Repository.PullRequest.Reviews.Nodes {
+		var comments []PullRequestComment
 		for _, comment := range review.Comments.Nodes {
 			comments = append(comments, PullRequestComment{
 				Path:     comment.Path,
@@ -94,12 +103,18 @@ func simplifyPRStruct(pr PRResponse) PullRequest {
 				Body:     comment.BodyText,
 			})
 		}
+		reviews = append(reviews, PullRequestReview{
+			ID:       review.ID,
+			Body:     review.BodyText,
+			Comments: comments,
+		})
 	}
+
 	return PullRequest{
-		ID:       pr.Data.Repository.PullRequest.ID,
-		BaseRef:  pr.Data.Repository.PullRequest.BaseRef.Target.OID,
-		HeadRef:  pr.Data.Repository.PullRequest.HeadRef.Target.OID,
-		Comments: comments,
+		ID:      pr.Data.Repository.PullRequest.ID,
+		BaseRef: pr.Data.Repository.PullRequest.BaseRef.Target.OID,
+		HeadRef: pr.Data.Repository.PullRequest.HeadRef.Target.OID,
+		Reviews: reviews,
 	}
 }
 
@@ -137,6 +152,8 @@ const (
       }
       reviews(author: "ecksun", first: 100) {
         nodes {
+          id
+          bodyText
           comments(first: 100) {
             pageInfo {
               endCursor
@@ -234,7 +251,7 @@ func GetPR(owner string, repo string, pr string) (PullRequest, error) {
 	// reader, err := os.Open("./get-pr-diff.graphql")
 	req, err := http.NewRequest("POST", "https://api.github.com/graphql", bytes.NewBuffer(query))
 	if err != nil {
-		panic(err)
+		return PullRequest{}, fmt.Errorf("could not created http request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -242,6 +259,59 @@ func GetPR(owner string, repo string, pr string) (PullRequest, error) {
 
 	client := &http.Client{}
 	res, err := client.Do(req)
+	if err != nil {
+		return PullRequest{}, fmt.Errorf("got error response from client request: %v", err)
+	}
 
+	// TODO Handle error response
 	return ParsePRResponse(res.Body)
+}
+
+const updateReviewGraphql = `
+mutation {
+  updatePullRequestReview(input: {
+    pullRequestReviewId: "{{ .ID }}"
+	body: "{{ .Body }}"
+  }) {
+    clientMutationId
+  }
+}
+`
+
+func UpdateReview(reviewID string, body string) error {
+	// TODO Extract environment reading to main
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		fmt.Fprintf(os.Stderr, "missing/empty TOKEN environment variable")
+		os.Exit(1)
+	}
+
+	query := GraphQLMustParse("update-review", updateReviewGraphql, struct {
+		ID   string
+		Body string
+	}{
+		ID:   reviewID,
+		Body: body,
+	})
+
+	req, err := http.NewRequest("POST", "https://api.github.com/graphql", bytes.NewBuffer(query))
+	if err != nil {
+		return fmt.Errorf("failed to created update request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Add("Authorization", "bearer "+token)
+
+	client := &http.Client{}
+
+	res, err := client.Do(req)
+	_, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
