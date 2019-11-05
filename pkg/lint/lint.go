@@ -13,6 +13,8 @@ import (
 // ./parse.go:9:9: main redeclared in this block
 var lintParagraph = regexp.MustCompile(`^([^: ]+):([0-9]+)(?::([0-9]+):)? (.*)$`)
 
+const metadataPrefix = "# githublinter: "
+
 type Paragraph struct {
 	File string
 	Line uint32
@@ -34,9 +36,13 @@ func Parse(reader io.Reader) ([]*Paragraph, error) {
 	scanner := bufio.NewScanner(reader)
 
 	var currentMatch *Paragraph
+	var metadata string
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		if strings.HasPrefix(line, metadataPrefix) {
+			metadata = strings.TrimPrefix(line, metadataPrefix)
+		}
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -53,11 +59,17 @@ func Parse(reader io.Reader) ([]*Paragraph, error) {
 				return []*Paragraph{}, err
 			}
 
+			var msg []string
+			if metadata != "" {
+				msg = []string{fmt.Sprintf("%s: %s", metadata, groups[0][4])}
+			} else {
+				msg = []string{groups[0][4]}
+			}
 			currentMatch = &Paragraph{
 				File: groups[0][1],
 				Line: uint32(line),
 				Char: uint32(char),
-				Msg:  []string{groups[0][4]},
+				Msg:  msg,
 			}
 			paragraphs = append(paragraphs, currentMatch)
 		}
