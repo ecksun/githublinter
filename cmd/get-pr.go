@@ -83,7 +83,12 @@ func main() {
 			newComments = append(newComments, comment)
 		}
 	}
-	fmt.Println(newComments)
+
+	if len(newComments) != 0 {
+		github.CreateReview(pullrequest.ID, "Linting issues!", newComments)
+	} else {
+		fmt.Println("No issues found!")
+	}
 }
 
 func getLinterComments(pullrequest github.PullRequest, repoDir string, linter string, linterArgs []string) ([]common.GraphQLComment, error) {
