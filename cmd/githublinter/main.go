@@ -36,7 +36,8 @@ func main() {
 
 	arguments, err := docopt.ParseDoc(usage)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Failed to parse document options, this is likely a programmer error: %+v\n", err)
+		os.Exit(2)
 	}
 
 	arguments.Bind(&conf)
@@ -44,7 +45,7 @@ func main() {
 	groups := githubURLRegex.FindAllStringSubmatch(conf.PR, -1)
 	if groups == nil {
 		fmt.Fprintf(os.Stderr, "Invalid github pull-request URL: %s\n", conf.PR)
-		os.Exit(2)
+		os.Exit(1)
 	}
 
 	owner := groups[0][1]
@@ -53,12 +54,14 @@ func main() {
 
 	repoDir := os.Getenv("GIT_REPO")
 	if repoDir == "" {
-		panic("Empty GIT_REPO")
+		fmt.Fprintf(os.Stderr, "You must set the GIT_REPO environent variable to an up-to-date clone of the repository\n")
+		os.Exit(1)
 	}
 
 	pullrequest, err := github.GetPR(owner, repo, pr)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Failed to get pull-request from github: %+v\n", err)
+		os.Exit(1)
 	}
 
 	existingComments := map[common.GraphQLComment]struct{}{}
@@ -76,7 +79,8 @@ func main() {
 
 	comments, err := getLinterComments(pullrequest, repoDir, conf.Linter[0], conf.Linter[1:])
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Failed to get and parse linter output: %+v\n", err)
+		os.Exit(1)
 	}
 
 	var newComments []common.GraphQLComment
@@ -90,18 +94,24 @@ func main() {
 		if len(pullrequest.Reviews) == 0 {
 			err := github.CreateReview(pullrequest.ID, "Linting issues!", newComments)
 			if err != nil {
-				panic(err)
+				fmt.Fprintf(os.Stderr, "Failed to create pull-request review: %+v\n", err)
+				os.Exit(1)
 			}
+			fmt.Println("Successfully submitted review")
 
 		} else {
 			err := github.UpdateReview(pullrequest.Reviews[0].ID, "New body2")
 			if err != nil {
-				panic(err)
+				fmt.Fprintf(os.Stderr, "Failed to update pull-request body: %+v\n", err)
+				os.Exit(1)
 			}
+			fmt.Println("Successfully updated pull-request review body")
 			err = github.CreateReview(pullrequest.ID, "", newComments)
 			if err != nil {
-				panic(err)
+				fmt.Fprintf(os.Stderr, "Failed to create pull-request review: %+v\n", err)
+				os.Exit(1)
 			}
+			fmt.Println("Successfully added new pull-request review with additional comments")
 
 		}
 	} else {
@@ -118,45 +128,40 @@ func getLinterComments(pullrequest github.PullRequest, repoDir string, linter st
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get stdout of git diff: %+v", err)
 	}
 
 	if err = cmd.Start(); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to start git diff: %+v", err)
 	}
 
 	lintPath, err := getLintPath(linter)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get path to linter: %+v", err)
 	}
 
 	lintCmd := exec.Command(lintPath, linterArgs...)
 
 	lintOut, err := lintCmd.StdoutPipe()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get stdout of linter command: %+v", err)
 	}
 
 	lintCmd.Dir = repoDir
 
 	if err := lintCmd.Start(); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to start linter: %+v", err)
 	}
 
 	comments, err := difflint.GetLintIssuesInDiff(stdout, lintOut)
 
-	{
-		err := cmd.Wait()
-		if err != nil {
-			fmt.Println(err)
-			panic(err)
-		}
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("git diff exited with a non-zero exit status: %+v", err)
 	}
-	{
-		// We ignore errors as linting will fail if there are lint-errors,
-		// which is just fine in our case
-		_ = lintCmd.Wait()
-	}
+
+	// We ignore errors as linting will fail if there are lint-errors,
+	// which is just fine in our case
+	_ = lintCmd.Wait()
 
 	return comments, err
 }

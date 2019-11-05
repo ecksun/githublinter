@@ -304,13 +304,7 @@ func UpdateReview(reviewID string, body string) error {
 
 	client := &http.Client{}
 
-	res, err := client.Do(req)
-	_, err = ioutil.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	if err != nil {
+	if _, err := client.Do(req); err != nil {
 		return err
 	}
 	return nil
