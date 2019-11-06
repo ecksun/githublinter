@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	fmt.Printf("%d", "this is wrong")
 	usage := `diffline
 
 Usage:
