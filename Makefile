@@ -36,7 +36,7 @@ $(PACKAGE_DIR)/DEBIAN/control: debian/control
 release: clean $(PACKAGE)
 	@mkdir -p "$(dir $@)"
 	@[ -z "$(shell git status --porcelain)" ] || (echo "Cannot release with unclean working directory"; false)
-	hub release create --attach="$<" "$(VERSION)"
+	hub release create --attach="$(PACKAGE)" "v$(VERSION)"
 
 .PHONY: clean
 clean:
