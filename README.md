@@ -11,7 +11,7 @@ having to fix all instance of the issue at once.
 ```bash
 export GITHUB_TOKEN="..."
 export GIT_REPO=. # the path to the git repo the PR is part of
-githublinter https://github.com/ecksun/test-repo/5 ./lint.sh
+githublinter https://github.com/ecksun/githublinter/pull/1 ./lint.sh
 ```
 
 Currently there is special syntax used by `githublinter` to annotate lints with
