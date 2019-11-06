@@ -1,0 +1,7 @@
+Package: githublinter
+Architecture: all
+Maintainer: ecksun <ecksun@gmail.com>
+Depends: git
+Description: Run any linter against the result of a github pull-request and
+ report all the newly introduced lint issues. The issues are reported directly
+ in the pull-request on the line where the issue was found.
