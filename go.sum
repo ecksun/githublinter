@@ -8,8 +8,6 @@ github.com/juju/testing v0.0.0-20160203233110-321edad6b2d1 h1:0WbpCsj5kC5p6YSWl0
 github.com/juju/testing v0.0.0-20160203233110-321edad6b2d1/go.mod h1:63prj8cnj0tU0S9OHjGJn+b1h0ZghCndfnbQolrYTwA=
 github.com/juju/utils v0.0.0-20160815113839-bdb77b07e7e3 h1:UmZwEQJiCr97I7qMfUB9VqS2BzRNQXx4VuAoHIfTQyA=
 github.com/juju/utils v0.0.0-20160815113839-bdb77b07e7e3/go.mod h1:6/KLg8Wz/y2KVGWEpkK9vMNGkOnu4k/cqs8Z1fKjTOk=
-github.com/spf13/pflag v1.0.3 h1:zPAT6CGy6wXeQ7NtTnaTerfKOsV6V6F8agHXFiazDkg=
-github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=
 github.com/waigani/diffparser v0.0.0-20190426062500-1f7065f429b5 h1:4yIx5P7EOBImq3ZdUT7ws9cJzECcROJU/qdUCe0susI=
 github.com/waigani/diffparser v0.0.0-20190426062500-1f7065f429b5/go.mod h1:CefseIIgCUqtn0B83Lc3+8F2L1V9viokWY2GQlkWGfs=
 golang.org/x/crypto v0.0.0-20160824173033-351dc6a5bf92 h1:6HmDSTSU7PVgeKBom4W04S2VmgzLOtZlfUiJuF+txm4=
